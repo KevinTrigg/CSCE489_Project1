@@ -4,15 +4,21 @@ essentially overwriting the code for the current process. If it wasn't called fr
 shell, terminating execution at the end of that call.
 
 ## Question2:how does fprintf work?
-fprintf is composed of three blocks, the file stream it prints into, a format specified block of text to be written, and any values formatted into said block of text.
-The file stream is where the text is printed to, this could be a file or standard output. The function calls the lowerlevel function write() to send the data to this 
-source. The formatted text is then sent to that file while several characters are specified for formatting purposes.
-"%" marks the begining of a format specified variable that would be taken from the next parameter passed into the call.
-different characters refer to different data types that can be entered to specify how they would be printed to the file stream to keep their intended type 
-in their new location or else they would all become 1's and 0's in the memory. 
+fprintf is composed of three blocks, the file stream it prints into, a format specified block of text to be written, and any arguments formatted into said block of text.
+
+the function calls the vfprintf function with the arguments added to an array for use.
+
+in vfprintf The file stream is where the text is printed to, this could be a file or standard output (STDOUT). this stream is responsible for where the buffered text (from the next argument) is put at the end of the functions run. 
+
+For the text being printed to that buffer, each character is read one by one and put into the buffer. Special characters such as % of \ result in different behavior depending on the following character(s). This is where the formatted in fprintf comes from. these characters represent either format specifiers %(s,c,d, etc...) or escape characters to use in the string without compilation erros \(n, t, ", etc). Once buffered these characters are written to the file through system calls like fwrite() to select the exact file to write to and the contents of that write. 
+
+the arguments provided after the text are to fill the format specifiers used within the text. These need to be added in this way to add modularity to the function and specified individually  since they need to be flagged apropriately for what they need to be written as to the write() call. 
+
+Once the end of the text is reached (EOF character), the function closes the file stream 
 
 
 
 learned from:
-https://www.scaler.com/topics/fprintf-in-c/ 
 https://stackoverflow.com/questions/2457656/understanding-the-hardware-of-printf
+https://github.com/lattera/glibc/blob/master/stdio-common/fprintf.c
+https://github.com/lattera/glibc/blob/master/stdio-common/vfprintf.c
