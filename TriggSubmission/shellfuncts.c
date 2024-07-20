@@ -19,11 +19,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <sys/file.h>
-
+#include <errno.h>
 
 pid_t pid;  //global for pid storage
 char ampersand= '\0'; //global for & check assigned in commandLoop but used in newProcess(), 
-                      //I didn't want to pass a value so global it is
+                      
+                      
 //***********************************************************************************
 //commandLoop: loop through takeInput and keep the prompt the user for that input
 //inputs: none
@@ -36,6 +37,8 @@ void commandLoop(){
         takeInput();
         }
 }
+
+
 //***********************************************************************************
 //takeInput: scan input from user in console and parse result to commands
 //inputs: none
@@ -43,7 +46,7 @@ void commandLoop(){
 //***********************************************************************************
 void takeInput(){
 	char commandInput[511];	  //large buffer for command input
-
+        ampersand='\0';
 	printf("shell command:"); //prompt the user for input
 	scanf("%s",commandInput); //scan the first word in 
         //if block for command parsing. check the first word for what command was input then split from there
@@ -79,13 +82,13 @@ void takeInput(){
           char fileName[255]="\0";  //create the needed variable
           //get the rest of the command (name and background check)
           fgets(commandInput,sizeof(commandInput),stdin);
-          sscanf(commandInput,"%s %c[^\n]",fileName,&ampersand);
+          sscanf(commandInput,"%s ",fileName);
           
           newProcess();//spawn a new process and check for background
           if(pid==0){ //function call for child
             list(fileName);
           }
-            
+                     
             
               
         }else if(strcmp(commandInput,"dir")==0){//write the directory out
@@ -93,19 +96,21 @@ void takeInput(){
           if(pid==0){ //function call for child
             dir();
           }
+          sleep(.2);//quick and dirty fix for execl() issue warping the child process and breaking console print
         
         
         
         }else if(strcmp(commandInput,"halt")==0){//kill the whole process and all children, complete through parent
           printf("\n halt called\n"); 
-          kill(0, SIGKILL); //ensure all children are dead (brutal)
-          return; //exit the loop
+          kill(0, SIGTERM); //ensure all children are dead (brutal)
+          //kill command found from link, and man pages on kill/signal
+          // https://stackoverflow.com/questions/18433585/kill-all-child-processes-of-a-parent-but-leave-the-parent-alive 
+          return; //ensure exit of the loop (just in case)
           
           
           
         }else{         //if the user inputs an improper command tell them
           printf("\nunknown command %s, please use a legal command.\n check for typos!\n",commandInput);
-                       
         }
 }
 
@@ -134,6 +139,8 @@ void create(char fileName[]){
   }
   exit(0);
 }
+
+
 //***********************************************************************************
 //update: append a block of text to the end of the referenced file a specified amount of times
 //inputs: 
@@ -157,16 +164,14 @@ void update(char fileName[], int writeLineNumTimes, char text[]){
   FILE *file; //file pointer
   if(  fopen(fileName,"r") ==NULL){ //check for the existence of the file
     printf("file %s doesn't exist!\n",fileName);
-  } else{
-  
+  } else { 
    file =fopen(fileName,"a"); //append to the file
-   flock(fileno(file),LOCK_EX); //lock the file from other processes accessing it while appending
+ 
     for(int i=0;i<writeLineNumTimes;i++){ //append text to the file a specified amount of times
       fprintf(file,"%s\n",text);    //write the text
       fflush(stdout); //clear the buffer
       sleep(strlen(text)/5);  //sleep so it can be tested
     }
-    flock(fileno(file),LOCK_UN);  //unlock the file
     fclose(file); //close file once complete
     if(ampersand!='&'){ //don't write success message if in background
       printf("file %s successfully updated by process: %d\n",fileName,pid);
@@ -174,6 +179,8 @@ void update(char fileName[], int writeLineNumTimes, char text[]){
   }
   exit(0);  //kill child
 }
+
+
 //***********************************************************************************
 //list: print the contents of the selected file to the console
 //inputs: 
@@ -189,22 +196,23 @@ void list(char fileName[]){
   if(  fopen(fileName,"r") ==NULL){ //check that the file exists
     printf("File \"%s\" doesn't exist!\n",fileName);
   }else{
-    
-    file = fopen(fileName,"r"); //read from the file
-    flock(fileno(file),LOCK_SH); //lock the file from other processes accessing it while appending
-    char nextCharacter=fgetc(file);
-    while (nextCharacter!=EOF){//file reading loop taken from www.geeksforgeeks.org/c-program-print-contents-file/
-      printf("%c",nextCharacter);
-      nextCharacter=fgetc(file);
+     file = fopen(fileName,"r"); //read from the file
+  printf("\n");
+    //file reading loop taken from www.geeksforgeeks.org/c-program-print-contents-file/ 
+    char nextCharacter=fgetc(file); //get next character
+    while (nextCharacter!=EOF){ //while the character isn't the end of the file
+      printf("%c",nextCharacter);//print the character to terminal
+      nextCharacter=fgetc(file);//get the next character to read/print
     }
-    flock(fileno(file),LOCK_UN);  //unlock and close the file
-    fclose(file);
+    fclose(file);//close the file
   }
   if(ampersand!='&'){ //don't print completion message if in background
     printf("list completed\n");
   }
   exit(0);
 }
+
+
 //***********************************************************************************
 //dir: print out the contents of the current directory
 //inputs: 
@@ -215,6 +223,8 @@ void dir(){
 execl("/bin/ls","ls",NULL); //provided in assignment, call the system to execute an ls command from console
 exit(0);
 }
+
+
 //***********************************************************************************
 //newProcess: fork a new child, print their pid, and wait for childs completion if in foreground
 //          issue: if list ran in background it disjoints prompt for input due to console print extending to dir if commanded
