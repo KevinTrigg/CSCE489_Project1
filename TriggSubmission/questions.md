@@ -20,5 +20,7 @@ Once the end of the text is reached (EOF character), the function stops writing 
 
 learned from:
 https://stackoverflow.com/questions/2457656/understanding-the-hardware-of-printf
+
 https://github.com/lattera/glibc/blob/master/stdio-common/fprintf.c
+
 https://github.com/lattera/glibc/blob/master/stdio-common/vfprintf.c
